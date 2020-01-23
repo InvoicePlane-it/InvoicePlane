@@ -115,7 +115,7 @@
                             </label>
                             <input type="number" name="settings[default_list_limit]" id="default_list_limit"
                                 class="form-control" minlength="1" min="1" required
-                                value="<?php echo get_setting('default_list_limit', 15, true) ?>">
+                                value="<?php echo get_setting('default_list_limit', 15, true) ?>" />
                         </div>
                     </div>
                 </div>
@@ -138,7 +138,7 @@
                             </label>
                             <input type="text" name="settings[currency_symbol]" id="settings[currency_symbol]"
                                 class="form-control"
-                                value="<?php echo get_setting('currency_symbol', '', true); ?>">
+                                value="<?php echo get_setting('currency_symbol', '', true); ?>" />
                         </div>
                     </div>
 
@@ -207,8 +207,7 @@
                                 <?php _trans('number_format'); ?>
                             </label>
                             <select name="settings[number_format]" id="settings[number_format]"
-                                class="form-control simple-select"
-                                data-minimum-results-for-search="Infinity">
+                                class="form-control simple-select" data-minimum-results-for-search="Infinity">
                                 <?php foreach ($number_formats as $key => $value) { ?>
                                     <option value="<?php print($key); ?>"
                                         <?php check_select(get_setting('number_format'), $value['label']); ?>>
@@ -218,33 +217,18 @@
                             </select>
                         </div>
                     </div>
-                </div>
 
-                <div class="col-xs-12 col-md-6">
-                    <div class="form-group">
-                        <label for="settings[decimal_point]">
-                            <?php _trans('decimal_point'); ?>
-                        </label>
-                        <input type="text" name="settings[decimal_point]" id="settings[decimal_point]"
-                               class="form-control"
-                               value="<?php echo get_setting('decimal_point', '', true); ?>">
+                    <div class="col-xs-12 col-md-6">
+                        <div class="form-group">
+                            <label for="settings[decimal_point]">
+                                <?php _trans('decimal_point'); ?>
+                            </label>
+                            <input type="text" name="settings[decimal_point]" id="settings[decimal_point]"
+                                class="form-control" value="<?php echo get_setting('decimal_point', '', true); ?>" />
+                        </div>
                     </div>
                 </div>
             </div>
-
-            <div class="row">
-                <div class="col-xs-12 col-md-6">
-                    <div class="form-group">
-                        <label for="default_list_limit">
-                            <?php _trans('default_list_limit'); ?>
-                        </label>
-                        <input type="number" name="settings[default_list_limit]" id="default_list_limit"
-                               class="form-control" minlength="1" min="1" required
-                               value="<?php echo get_setting('default_list_limit', 15, true) ?>">
-                    </div>
-                </div>
-            </div>
-
         </div>
 
 
@@ -454,21 +438,8 @@
 
                             <p class="help-block"><?php _trans('bcc_mails_to_admin_hint'); ?></p>
                         </div>
-
-                    <div class="form-group">
-                        <label for="settings[bcc_mails_to_admin]">
-                            <?php _trans('bcc_mails_to_admin'); ?>
-                        </label>
-                        <select name="settings[bcc_mails_to_admin]" id="settings[bcc_mails_to_admin]"
-                                class="form-control simple-select">
-                            <option value="0"><?php _trans('no'); ?></option>
-                            <option value="1" <?php check_select(get_setting('bcc_mails_to_admin'), '1'); ?>>
-                                <?php _trans('yes'); ?>
-                            </option>
-                        </select>
-
-                        <p class="help-block"><?php _trans('bcc_mails_to_admin_hint'); ?></p>
                     </div>
+
                     <div class="col-xs-12 col-md-6">
 
                         <div class="form-group">
@@ -485,7 +456,6 @@
                                 </div>
                             </div>
                         </div>
-
                     </div>
                 </div>
 
