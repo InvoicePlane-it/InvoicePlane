@@ -403,23 +403,20 @@
 
                     </div>
                 </div>
-            </div>
-            
-			<?php //---it---inizio ?>
-			<div class="form-group">
-				<label class="control-label"><?php echo lang('it_motore_stampa'); ?>: </label>
-				<select name="settings[it_print_engine]" class="form-control">
-					<option value="mpdf" <?php if ($this->mdl_settings->setting('it_print_engine') == 'mpdf') { ?>selected="selected"<?php } ?>><?php echo lang('it_motore_stampa_mpdf'); ?></option>
-					<option value="dompdf" <?php if ($this->mdl_settings->setting('it_print_engine') == 'dompdf') { ?>selected="selected"<?php } ?>><?php echo lang('it_motore_stampa_dompdf'); ?></option>
-				</select>
-			</div>
-			<?php //---it---fine ?>
-        </div>
-    </div>
-
+                
+                <?php //---it---inizio ?>
+                <div class="form-group">
+                    <label class="control-label"><?php echo trans('it_motore_stampa'); ?>: </label>
+                    <select name="settings[it_print_engine]" class="form-control">
+                        <option value="mpdf" <?php if ($this->mdl_settings->setting('it_print_engine') == 'mpdf') { ?>selected="selected"<?php } ?>><?php echo lang('it_motore_stampa_mpdf'); ?></option>
+                        <option value="dompdf" <?php if ($this->mdl_settings->setting('it_print_engine') == 'dompdf') { ?>selected="selected"<?php } ?>><?php echo lang('it_motore_stampa_dompdf'); ?></option>
+                    </select>
+                </div>
+                <?php //---it---fine ?>
+                
             </div>
         </div>
-
+        
         <div class="panel panel-default">
             <div class="panel-heading">
                 <?php _trans('system_settings'); ?>
