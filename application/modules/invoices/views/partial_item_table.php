@@ -209,8 +209,6 @@
                                 echo 'disabled="disabled"';
                             } ?>>
                     </div>
-                </td>
-                <td class="td-amount">
                     <div class="input-group">
                         <span class="input-group-addon"><?php _trans('item_discount_percent'); ?></span>
                         <input type="text" name="item_discount_percent" class="input-sm form-control amount"
