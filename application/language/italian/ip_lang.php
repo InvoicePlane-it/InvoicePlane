@@ -280,6 +280,7 @@ $lang = array(
     'is_writable'                                  => 'è scrivibile',
     'item'                                         => 'Articolo',
     'item_discount'                                => 'Sconto articolo',
+    'item_discount_percent'                        => 'Sconto % articolo',
     'item_lookup_form'                             => 'Articolo',
     'item_lookups'                                 => 'Anagrafica articoli',
     'item_name'                                    => 'Nome articolo',
