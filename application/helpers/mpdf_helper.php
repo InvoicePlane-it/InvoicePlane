@@ -158,13 +158,17 @@ function pdf_create(
  */
 function pdf_create_dompdf($html, $filename, $stream = TRUE) {
 	
-	require_once(APPPATH . 'helpers/dompdf/dompdf_config.inc.php');
+	require_once(APPPATH . 'helpers/dompdf/autoload.inc.php');
 	
-	$dompdf = new DOMPDF();
+	$options = new Dompdf\Options();
+	$options->set('isRemoteEnabled', TRUE);	// img web path
+	$options->set('isPhpEnabled', TRUE);	// run text/php script in html
 	
-	$dompdf->load_html($html);
+	$dompdf = new Dompdf\Dompdf($options);
 	
-	$dompdf->set_paper('a4');	//---it---
+	$dompdf->loadHtml($html);
+	
+	$dompdf->setPaper('a4');
 	$dompdf->render();
 	
 	if ($stream) {
