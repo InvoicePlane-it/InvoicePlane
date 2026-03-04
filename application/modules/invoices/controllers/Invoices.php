@@ -1,23 +1,21 @@
 <?php
-if (!defined('BASEPATH')) {
+
+if ( ! defined('BASEPATH')) {
     exit('No direct script access allowed');
 }
 
 /*
  * InvoicePlane
  *
- * @author		InvoicePlane Developers & Contributors
- * @copyright	Copyright (c) 2012 - 2018 InvoicePlane.com
- * @license		https://invoiceplane.com/license.txt
- * @link		https://invoiceplane.com
+ * @author      InvoicePlane Developers & Contributors
+ * @copyright   Copyright (c) 2012 - 2018 InvoicePlane.com
+ * @license     https://invoiceplane.com/license.txt
+ * @link        https://invoiceplane.com
  */
 
-/**
- * Class Invoices
- */
+#[AllowDynamicProperties]
 class Invoices extends Admin_Controller
 {
-
     /**
      * Invoices constructor.
      */
@@ -28,17 +26,16 @@ class Invoices extends Admin_Controller
         $this->load->model('mdl_invoices');
     }
 
-    public function index()
+    public function index(): void
     {
         // Display all invoices by default
         redirect('invoices/status/all');
     }
 
     /**
-     * @param string $status
      * @param int $page
      */
-    public function status($status = 'all', $page = 0)
+    public function status(string $status = 'all', $page = 0): void
     {
         // Determine which group of invoices to load
         switch ($status) {
@@ -64,12 +61,12 @@ class Invoices extends Admin_Controller
 
         $this->layout->set(
             [
-                'invoices' => $invoices,
-                'status' => $status,
-                'filter_display' => true,
+                'invoices'           => $invoices,
+                'status'             => $status,
+                'filter_display'     => true,
                 'filter_placeholder' => trans('filter_invoices'),
-                'filter_method' => 'filter_invoices',
-                'invoice_statuses' => $this->mdl_invoices->statuses(),
+                'filter_method'      => 'filter_invoices',
+                'invoice_statuses'   => $this->mdl_invoices->statuses(),
             ]
         );
 
@@ -77,67 +74,66 @@ class Invoices extends Admin_Controller
         $this->layout->render();
     }
 
-    public function archive()
+    public function archive(): void
     {
-        $invoice_array = [];
+        $invoice_array = $this->mdl_invoices->get_archives(0);
+        $this->layout->set(
+            [
+                'filter_display'     => true,
+                'filter_placeholder' => trans('filter_archives'),
+                'filter_method'      => 'filter_archives',
+                'invoices_archive'   => $invoice_array,
+            ]
+        );
+        $this->layout->buffer('content', 'invoices/archive');
+        $this->layout->render();
+    }
 
-        if (isset($_POST['invoice_number'])) {
-            $invoiceNumber = $_POST['invoice_number'];
-            $invoice_array = glob(UPLOADS_ARCHIVE_FOLDER . '*' . '_' . $invoiceNumber . '.pdf');
-            $this->layout->set(
-                [
-                    'invoices_archive' => $invoice_array,
-                ]);
-            $this->layout->buffer('content', 'invoices/archive');
-            $this->layout->render();
+    public function download($invoice): void
+    {
+        $safeBaseDir = realpath(UPLOADS_ARCHIVE_FOLDER);
 
-        } else {
-            foreach (glob(UPLOADS_ARCHIVE_FOLDER . '*.pdf') as $file) {
-                array_push($invoice_array, $file);
-            }
+        $fileName = urldecode(basename($invoice)); // Strip directory traversal sequences
+        $filePath = realpath($safeBaseDir . DIRECTORY_SEPARATOR . $fileName);
 
-            rsort($invoice_array);
-            $this->layout->set(
-                [
-                    'invoices_archive' => $invoice_array,
-                ]);
-            $this->layout->buffer('content', 'invoices/archive');
-            $this->layout->render();
+        if ($filePath === false || ! str_starts_with($filePath, $safeBaseDir)) {
+            log_message('error', 'Invalid file access attempt: ' . $fileName);
+            show_404();
+
+            return;
         }
+
+        if ( ! file_exists($filePath)) {
+            log_message('error', 'While downloading: File not found: ' . $filePath);
+            show_404();
+
+            return;
+        }
+
+        header('Content-Type: application/pdf');
+        header('Content-Disposition: attachment; filename="' . basename($filePath) . '"');
+        header('Content-Length: ' . filesize($filePath));
+        readfile($filePath);
+        exit;
     }
 
-    /**
-     * @param $invoice
-     */
-    public function download($invoice)
-    {
-        header('Content-type: application/pdf');
-        header('Content-Disposition: attachment; filename="' . urldecode($invoice) . '"');
-        readfile(UPLOADS_ARCHIVE_FOLDER . urldecode($invoice));
-    }
-
-    /**
-     * @param $invoice_id
-     */
-    public function view($invoice_id)
+    public function view($invoice_id): void
     {
         $this->load->model(
             [
-                'mdl_items',
+                'invoices/mdl_items',
+                'invoices/mdl_invoice_tax_rates',
                 'tax_rates/mdl_tax_rates',
                 'payment_methods/mdl_payment_methods',
-                'mdl_invoice_tax_rates',
                 'custom_fields/mdl_custom_fields',
+                'custom_values/mdl_custom_values',
+                'custom_fields/mdl_invoice_custom',
+                'units/mdl_units',
+                'upload/mdl_uploads',
             ]
         );
-
-        $this->load->helper("custom_values");
-        $this->load->helper("client");
-        $this->load->model('units/mdl_units');
+        $this->load->helper(['custom_values', 'dropzone', 'e-invoice']);
         $this->load->module('payments');
-
-        $this->load->model('custom_values/mdl_custom_values');
-        $this->load->model('custom_fields/mdl_invoice_custom');
 
         $this->db->reset_query();
 
@@ -153,18 +149,18 @@ class Invoices extends Admin_Controller
             }
         }*/
 
-        $fields = $this->mdl_invoice_custom->by_id($invoice_id)->get()->result();
+        $fields  = $this->mdl_invoice_custom->by_id($invoice_id)->get()->result();
         $invoice = $this->mdl_invoices->get_by_id($invoice_id);
 
-        if (!$invoice) {
+        if ( ! $invoice) {
             show_404();
         }
-
+        $is_credit_invoice = (isset($invoice->invoice_sign) && $invoice->invoice_sign == -1);
         $custom_fields = $this->mdl_custom_fields->by_table('ip_invoice_custom')->get()->result();
         $custom_values = [];
         foreach ($custom_fields as $custom_field) {
             if (in_array($custom_field->custom_field_type, $this->mdl_custom_values->custom_value_fields())) {
-                $values = $this->mdl_custom_values->get_by_fid($custom_field->custom_field_id)->result();
+                $values                                        = $this->mdl_custom_values->get_by_fid($custom_field->custom_field_id)->result();
                 $custom_values[$custom_field->custom_field_id] = $values;
             }
         }
@@ -183,60 +179,57 @@ class Invoices extends Admin_Controller
         }
 
         // Check whether there are payment custom fields
-        $payment_cf = $this->mdl_custom_fields->by_table('ip_payment_custom')->get();
-        $payment_cf_exist = ($payment_cf->num_rows() > 0) ? "yes" : "no";
+        $payment_cf       = $this->mdl_custom_fields->by_table('ip_payment_custom')->get();
+        $payment_cf_exist = ($payment_cf->num_rows() > 0) ? 'yes' : 'no';
+        // Get Items
+        $items = $this->mdl_items->where('invoice_id', $invoice_id)->get()->result();
+        // Get eInvoice library name and user checks
+        $einvoice = get_einvoice_usage($invoice, $items);
+        // Activate 'Change_user' if admin users > 1  (get the sum of user type = 1 & active)
+        $change_user = $this->db->from('ip_users')->where(['user_type' => 1, 'user_active' => 1])->select_sum('user_type')->get()->row();
+        $change_user = $change_user->user_type > 1;
 
         $this->layout->set(
             [
-                'invoice' => $invoice,
-                'items' => $this->mdl_items->where('invoice_id', $invoice_id)->get()->result(),
-                'invoice_id' => $invoice_id,
-                'tax_rates' => $this->mdl_tax_rates->get()->result(),
+                'invoice'           => $invoice,
+                'items'             => $items,
+                'invoice_id'        => $invoice_id,
+                'is_credit_invoice' => $is_credit_invoice,
+                'einvoice'          => $einvoice,
+                'change_user'       => $change_user,
+                'tax_rates'         => $this->mdl_tax_rates->get()->result(),
                 'invoice_tax_rates' => $this->mdl_invoice_tax_rates->where('invoice_id', $invoice_id)->get()->result(),
-                'units' => $this->mdl_units->get()->result(),
-                'payment_methods' => $this->mdl_payment_methods->get()->result(),
-                'custom_fields' => $custom_fields,
-                'custom_values' => $custom_values,
-                'custom_js_vars' => [
-                    'currency_symbol' => get_setting('currency_symbol'),
+                'units'             => $this->mdl_units->get()->result(),
+                'payment_methods'   => $this->mdl_payment_methods->get()->result(),
+                'custom_fields'     => $custom_fields,
+                'custom_values'     => $custom_values,
+                'custom_js_vars'    => [
+                    'currency_symbol'           => get_setting('currency_symbol'),
                     'currency_symbol_placement' => get_setting('currency_symbol_placement'),
-                    'decimal_point' => get_setting('decimal_point'),
+                    'decimal_point'             => get_setting('decimal_point'),
                 ],
-                'invoice_statuses' => $this->mdl_invoices->statuses(),
-                'payment_cf_exist' => $payment_cf_exist,
+                'invoice_statuses'   => $this->mdl_invoices->statuses(),
+                'payment_cf_exist'   => $payment_cf_exist,
+                'legacy_calculation' => config_item('legacy_calculation'),
             ]
         );
 
-        if ($invoice->sumex_id != null) {
-            $this->layout->buffer(
-                [
-                    ['modal_delete_invoice', 'invoices/modal_delete_invoice'],
-                    ['modal_add_invoice_tax', 'invoices/modal_add_invoice_tax'],
-                    ['modal_add_payment', 'payments/modal_add_payment'],
-                    ['content', 'invoices/view_sumex'],
-                ]
-            );
-        } else {
-            $this->layout->buffer(
-                [
-                    ['modal_delete_invoice', 'invoices/modal_delete_invoice'],
-                    ['modal_add_invoice_tax', 'invoices/modal_add_invoice_tax'],
-                    ['modal_add_payment', 'payments/modal_add_payment'],
-                    ['content', 'invoices/view'],
-                ]
-            );
-        }
+        $this->layout->buffer(
+            [
+                ['modal_delete_invoice', 'invoices/modal_delete_invoice'],
+                ['modal_add_invoice_tax', 'invoices/modal_add_invoice_tax'],
+                ['modal_add_payment', 'payments/modal_add_payment'],
+                ['content', 'invoices/view' . ($invoice->sumex_id ? '_sumex' : '')],
+            ]
+        );
 
         $this->layout->render();
     }
 
-    /**
-     * @param $invoice_id
-     */
-    public function delete($invoice_id)
+    public function delete($invoice_id): void
     {
         // Get the status of the invoice
-        $invoice = $this->mdl_invoices->get_by_id($invoice_id);
+        $invoice        = $this->mdl_invoices->get_by_id($invoice_id);
         $invoice_status = $invoice->invoice_status_id;
 
         if ($invoice_status == 1 || $this->config->item('enable_invoice_deletion') === true) {
@@ -256,11 +249,10 @@ class Invoices extends Admin_Controller
     }
 
     /**
-     * @param $invoice_id
+     * @param      $invoice_id
      * @param bool $stream
-     * @param null $invoice_template
      */
-    public function generate_pdf($invoice_id, $stream = true, $invoice_template = null)
+    public function generate_pdf($invoice_id, $stream = true, $invoice_template = null): void
     {
         $this->load->helper('pdf');
 
@@ -271,231 +263,219 @@ class Invoices extends Admin_Controller
 
         generate_invoice_pdf($invoice_id, $stream, $invoice_template, null);
     }
-	
-    //---it---inizio
+
     /**
      * General XML Fattura Eletronica e lancia il download dell'XML
      * @param int $invoice_id
      */
     public function generate_xml($invoice_id)
     {
-    	$invoice = $this->mdl_invoices->get_by_id($invoice_id);
-    	$user_id = $invoice->user_id;
-    	$this->load->model('users/mdl_users');
-    	$user = $this->mdl_users->get_by_id($user_id);
-    	
-    	// Preleva campi custom
-    	$customs = [];
-    	// utente: regime fiscale
-    	foreach ([
-    	'IT_UTENTE_REGIMEFISC_ID' => 'utente_regimefisc',
-    	'IT_UTENTE_NATURA_IVA0_ID' => 'utente_natura_iva0',
-    	'IT_UTENTE_PROGR_XML_ID' => 'utente_progr_xml',
-    	] as $env => $key)
-    	{
-    		$customs[$key] = NULL;
-    		if (env($env))
-    		{
-    			$this->load->model('custom_fields/mdl_user_custom');
-    			$user_custom = $this->mdl_user_custom->by_id($user_id)->where('user_custom_fieldid', env($env))->get()->row();
-    			if ($user_custom)
-    			{
-    				$customs[$key] = $user_custom->user_custom_fieldvalue ? $user_custom->user_custom_fieldvalue : NULL;
-    			}
-    		}
-    	}
-    	// cliente: formato xml, codice e/o pec sdi
-    	$client_id = $invoice->client_id;
-    	foreach ([
-    	'IT_CLIENTE_FORMATO_XML_ID' => 'cliente_formato_xml',
-    	'IT_CLIENTE_SDI_CODICE_ID' => 'cliente_sdi_codice',
-    	'IT_CLIENTE_SDI_PEC_ID' => 'cliente_sdi_pec',
-    	] as $env => $key)
-    	{
-    		$customs[$key] = NULL;
-    		if (env($env))
-    		{
-    			$this->load->model('custom_fields/mdl_client_custom');
-    			$client_custom = $this->mdl_client_custom->by_id($client_id)->where('client_custom_fieldid', env($env))->get()->row();
-    			if ($client_custom)
-    			{
-    				$customs[$key] = $client_custom->client_custom_fieldvalue ? $client_custom->client_custom_fieldvalue : NULL;
-    			}
-    		}
-    	}
-    	
-    	// Genera XML fattura elettronica
-    	// https://github.com/s2software/fatturapa
-    	require_once(APPPATH.'libraries/fatturapa/fatturapa.php');
-    	$formato = $customs['cliente_formato_xml'] ? $customs['cliente_formato_xml'] : 'FPR12';
-    	$fatturapa = new FatturaPA($formato);	// privato vs pa
-    	
-    	// Mittente
-    	$fatturapa->set_mittente([
-    			// Dati azienda emittente fattura
-    			'ragsoc' => $invoice->user_name,
-    			'indirizzo' => $invoice->user_address_1,
-    			'cap' => $invoice->user_zip,
-    			'comune' => $invoice->user_city,
-    			'prov' => $invoice->user_state,
-    			'paese' => $invoice->user_country ? $invoice->user_country : 'IT',
-    			'piva' => $invoice->user_vat_id ? $invoice->user_vat_id : NULL,
-    			'codfisc' => $invoice->user_tax_code ? $invoice->user_tax_code : NULL,
-    			// Regime fiscale - https://git.io/fhmMd
-    			'regimefisc' => $customs['utente_regimefisc'],
-    	]);
-    	
-    	// Destinatario
-    	$fatturapa->set_destinatario([
-    			// Dati cliente destinatario fattura
-    			'ragsoc' => $invoice->client_name,
-    			'indirizzo' => $invoice->client_address_1,
-    			'cap' => $invoice->client_zip,
-    			'comune' => $invoice->client_city,
-    			'prov' => $invoice->client_state,
-    			'paese' => $invoice->client_country ? $invoice->client_country : 'IT',
-    			'piva' => $invoice->client_vat_id ? $invoice->client_vat_id : NULL,
-    			'codfisc' => $invoice->client_tax_code ? $invoice->client_tax_code : NULL,
-    			// Dati SdI (Sistema di Interscambio) del destinatario/cliente
-    			// - Codice destinatario - da impostare in alternativa alla PEC
-    			'sdi_codice' => $customs['cliente_sdi_codice'],
-    			// - PEC destinatario - da impostare in alternativa al Codice
-    			'sdi_pec' => $customs['cliente_sdi_pec'],
-    	]);
-    	
-    	// Dati fattura
-    	$fatturapa->set_intestazione([
-    			// Tipo documento - https://git.io/fhmMb (default = TD01 = fattura)
-    			'tipodoc' => "TD01",
-    			// Valuta (default = EUR)
-    			'valuta' => 'EUR',
-    			// Data e numero fattura
-    			'data' => $invoice->invoice_date_created,
-    			'numero' => $invoice->invoice_number,
-    	]);
-    	
-    	$this->load->model('invoices/mdl_items');
-    	$items = $this->mdl_items->where('invoice_id', $invoice_id)->get()->result();
-    	
-    	// Righe dettagli
-    	foreach ($items as $i => $item)
-    	{
-    		$description = trim($item->item_name) ? $item->item_name : '';
-    		if ($item->item_description)
-    		{
-    			if ($description)
-    				$description .= ' - ';
-    			$description .= $item->item_description;
-    		}
-    		$fatturapa->add_riga([
-    				// Numero progressivo riga dettaglio
-    				'num' => $i+1,
-    				// Descrizione prodotto/servizio
-    				'descrizione' => $description,
-    				// Prezzo unitario del prodotto/servizio
-    				'prezzo' => FatturaPA::dec($item->item_price),
-    				// Quantità
-    				'qta' => FatturaPA::dec($item->item_quantity),
-    				// Prezzo totale (prezzo x qta)
-    				'importo' => FatturaPA::dec($item->item_subtotal), // imponibile riga
-    				// % aliquota IVA
-    				'perciva' => FatturaPA::dec($item->item_tax_rate_percent),	// NOTA: quindi per funzionare, l'iva va messa sulle righe
-    				// (natura IVA non indicata, se l'iva è a 0)
-    				'natura_iva0' => $item->item_tax_rate_percent == 0 ? $customs['utente_natura_iva0'] : NULL
-    		]);
-    	}
-    	
-    	// Totale
-    	$merge = [];
-    	$merge['esigiva'] = 'I';	// esigibilità IVA (scritta nell'XML solo se viene applicata l'IVA)
-    	$totale = $fatturapa->set_auto_totali($merge, ['autobollo' => TRUE]);
-    	
-    	// Pagamento
-    	if ($invoice->payment_method)
-    	{
-    		$payment_method_id = $invoice->payment_method;
-    		$env = "IT_METODO_PAGAMENTO_ID_{$payment_method_id}_CODICE";
-    		if (env($env))
-    		{
-    			// Modalità (possibile più di una) https://git.io/fhmDu
-    			$modalita = [
-    					'modalita' => env($env),	// codice pagamento corrispondente
-    					'totale' => FatturaPA::dec($totale),	// totale iva inclusa
-    					'scadenza' => $invoice->invoice_date_due,
-    			];
-    			
-    			if (env($env) == "MP05" && !empty($user->user_iban))	// bonifico: scrive anche l'iban
-    			{
-    				$modalita['iban'] = $user->user_iban;
-    			}
-    			
-    			$fatturapa->set_pagamento([
-    					// Condizioni pagamento - https://git.io/fhmD8 (default: TP02 = completo)
-    					'condizioni' => "TP02"
-    			], $modalita);
-    		}
-    	}
-    	
-    	// XML:
-    	// Progressivo: se campo Prossimo progressivo impostato, usa quello, altrimenti
-    	// calcola il progressivo tramite il numero fattura, togliendo i catatteri non numerici
-    	$progr = '';
-    	if (isset($customs['utente_progr_xml']))
-    	{
-    		$progr = empty($customs['utente_progr_xml']) ? 1 : $customs['utente_progr_xml'];
-    		// incrementa
-    		//$this->mdl_user_custom->by_id($user_id)->where('user_custom_fieldid', env($env))->get()->row();
-    		$this->mdl_user_custom->save_custom($user_id, [env('IT_UTENTE_PROGR_XML_ID') => $progr+1]);
-    	}
-    	else	// converte il numero (toglie cioè che non è un numero) in base36 (il massimo per il progressivo nel nome file è 5 caratteri)
-    	{
-    		$num = preg_replace("/[^0-9]/", '', $invoice->invoice_number);
-    		$progr = strtoupper(base_convert($num, 10, 36));
-    	}
-    	
-    	// Genera XML
-    	$filename = $fatturapa->filename($progr);
-    	$xml = $fatturapa->get_xml();
-    	
-    	// Scarica XML
-    	$this->load->helper('download');
-    	force_download($filename, $xml);
+        // Carica helper
+        $this->load->helper('e-invoice');
+        $this->load->model('invoices/mdl_items');
+        $this->load->model('users/mdl_users');
+        $this->load->model('custom_fields/mdl_user_custom');
+        $this->load->model('custom_fields/mdl_client_custom');
+        
+        // Ottieni invoice e items
+        $invoice = $this->mdl_invoices->get_by_id($invoice_id);
+        $items = $this->mdl_items->where('invoice_id', $invoice_id)->get()->result();
+        
+        if (!$invoice) {
+            show_404();
+            return;
+        }
+        
+        $user_id = $invoice->user_id;
+        $client_id = $invoice->client_id;
+        
+        // === DEBUG: Verifica ENV variables ===
+        log_message('debug', '=== GENERATE_XML START ===');
+        log_message('debug', "Invoice ID: {$invoice_id}");
+        log_message('debug', "User ID: {$user_id}");
+        log_message('debug', "Client ID: {$client_id}");
+        log_message('debug', 'IT_UTENTE_REGIMEFISC_ID: ' . (env('IT_UTENTE_REGIMEFISC_ID') ?: 'NON IMPOSTATO'));
+        log_message('debug', 'IT_UTENTE_NATURA_IVA0_ID: ' . (env('IT_UTENTE_NATURA_IVA0_ID') ?: 'NON IMPOSTATO'));
+        log_message('debug', 'IT_CLIENTE_SDI_CODICE_ID: ' . (env('IT_CLIENTE_SDI_CODICE_ID') ?: 'NON IMPOSTATO'));
+        log_message('debug', 'IT_CLIENTE_SDI_PEC_ID: ' . (env('IT_CLIENTE_SDI_PEC_ID') ?: 'NON IMPOSTATO'));
+        
+        // Recupera custom fields UTENTE
+        $regimefisc = null;
+        $natura_iva0 = null;
+        
+        if (env('IT_UTENTE_REGIMEFISC_ID')) {
+            $field_id = env('IT_UTENTE_REGIMEFISC_ID');
+            log_message('debug', "Cerco regime fiscale - field_id: {$field_id}, user_id: {$user_id}");
+            
+            $user_custom = $this->mdl_user_custom->by_id($user_id)
+                ->where('user_custom_fieldid', $field_id)
+                ->get()->row();
+            
+            log_message('debug', 'Query user_custom result: ' . print_r($user_custom, true));
+            
+            if ($user_custom && !empty($user_custom->user_custom_fieldvalue)) {
+                $regimefisc = $user_custom->user_custom_fieldvalue;
+                log_message('debug', "Regime fiscale TROVATO: {$regimefisc}");
+            } else {
+                log_message('error', 'REGIME FISCALE NON TROVATO per user_id: ' . $user_id);
+            }
+        } else {
+            log_message('error', 'ENV IT_UTENTE_REGIMEFISC_ID non impostata');
+        }
+        
+        if (env('IT_UTENTE_NATURA_IVA0_ID')) {
+            $user_custom = $this->mdl_user_custom->by_id($user_id)
+                ->where('user_custom_fieldid', env('IT_UTENTE_NATURA_IVA0_ID'))
+                ->get()->row();
+            if ($user_custom && !empty($user_custom->user_custom_fieldvalue)) {
+                $natura_iva0 = $user_custom->user_custom_fieldvalue;
+                log_message('debug', "Natura IVA0 trovata: {$natura_iva0}");
+            }
+        }
+        
+        // Recupera custom fields CLIENTE
+        $sdi_codice = null;
+        $sdi_pec = null;
+        
+        if (env('IT_CLIENTE_SDI_CODICE_ID')) {
+            $client_custom = $this->mdl_client_custom->by_id($client_id)
+                ->where('client_custom_fieldid', env('IT_CLIENTE_SDI_CODICE_ID'))
+                ->get()->row();
+            if ($client_custom && !empty($client_custom->client_custom_fieldvalue)) {
+                $sdi_codice = $client_custom->client_custom_fieldvalue;
+                log_message('debug', "SDI Codice trovato: {$sdi_codice}");
+            }
+        }
+        
+        if (env('IT_CLIENTE_SDI_PEC_ID')) {
+            $client_custom = $this->mdl_client_custom->by_id($client_id)
+                ->where('client_custom_fieldid', env('IT_CLIENTE_SDI_PEC_ID'))
+                ->get()->row();
+            if ($client_custom && !empty($client_custom->client_custom_fieldvalue)) {
+                $sdi_pec = $client_custom->client_custom_fieldvalue;
+                log_message('debug', "SDI PEC trovata: {$sdi_pec}");
+            }
+        }
+        
+        log_message('debug', 'Valori finali - Regime: ' . ($regimefisc ?: 'NULL') . ', Natura IVA0: ' . ($natura_iva0 ?: 'NULL'));
+        
+        // VERIFICA: Se regimefisc è NULL, blocca con errore
+        if (empty($regimefisc)) {
+            $error_msg = "Regime Fiscale mancante. Verifica le impostazioni utente.";
+            log_message('error', $error_msg);
+            log_message('error', 'Verifica: 1) ENV IT_UTENTE_REGIMEFISC_ID 2) Custom field creato 3) Valore compilato');
+            
+            $this->session->set_flashdata('alert_error', $error_msg);
+            redirect('invoices/view/' . $invoice_id);
+            return;
+        }
+        
+        // Determina template XML
+        $xml_lib = 'Fatturapav12';
+        
+        // Opzioni (SENZA default)
+        $options = [
+            'regimefisc' => $regimefisc,
+            'natura_iva0' => $natura_iva0,
+            'sdi_codice' => $sdi_codice,
+            'sdi_pec' => $sdi_pec,
+        ];
+        
+        log_message('debug', 'Options: ' . print_r($options, true));
+        
+        // Nome file
+        $user_vat_clean = str_replace(' ', '', $invoice->user_vat_id);
+        $invoice_num_clean = str_replace(['/', '-', ' '], '', $invoice->invoice_number);
+        $filename = 'IT' . $user_vat_clean . '_' . $invoice_num_clean;
+        
+        log_message('debug', "XML template: {$xml_lib}, filename: {$filename}");
+        
+        // Genera XML
+        try {
+            $xml_file = generate_xml_invoice_file($invoice, $items, $xml_lib, $filename, $options);
+            
+            log_message('debug', "XML generato con successo: {$xml_file}");
+            
+            // Forza download
+            $this->load->helper('download');
+            $xml_content = file_get_contents($xml_file);
+            force_download($filename . '.xml', $xml_content);
+            
+            // Cleanup
+            if (file_exists($xml_file)) {
+                unlink($xml_file);
+            }
+            
+        } catch (Exception $e) {
+            log_message('error', 'Errore generazione FatturaPA: ' . $e->getMessage());
+            log_message('error', 'Stack trace: ' . $e->getTraceAsString());
+            
+            $this->session->set_flashdata('alert_error', 'Errore generazione XML: ' . $e->getMessage());
+            redirect('invoices/view/' . $invoice_id);
+        }
+        
+        log_message('debug', '=== GENERATE_XML END ===');
     }
-    //---it---fine
     
     /**
      * @param $invoice_id
      */
     public function generate_zugferd_xml($invoice_id)
     {
-        $this->load->model('invoices/mdl_items');
-        $this->load->library('ZugferdXml', [
-            'invoice' => $this->mdl_invoices->get_by_id($invoice_id),
-            'items' => $this->mdl_items->where('invoice_id', $invoice_id)->get()->result(),
-        ]);
+        $invoice = $this->mdl_invoices->get_by_id($invoice_id);
+        if ( ! $invoice) {
+            show_404();
+        }
 
+        $this->load->model('invoices/mdl_items');
+        $items = $this->mdl_items->where('invoice_id', $invoice_id)->get()->result();
+
+        $this->load->helper('e-invoice'); // eInvoicing++
+        $einvoice = get_einvoice_usage($invoice, $items, false);
+        if ( ! $einvoice->user) {
+            show_404();
+        }
+
+        // eInvoice library to Generate the appropriate UBL/CII or false
+        $xml_id    = $einvoice->name; // $invoice->client_einvoicing_version
+        $options   = [];
+        $generator = $xml_id;
+        $path      = APPPATH . 'helpers/XMLconfigs/';
+        if ($xml_id && file_exists($path . $xml_id . '.php') && include $path . $xml_id . '.php') {
+            $embed_xml = $xml_setting['embedXML'];
+            $XMLname   = $xml_setting['XMLname'];
+            $options   = (empty($xml_setting['options']) ? $options : $xml_setting['options']); // Optional
+            $generator = (empty($xml_setting['generator']) ? $generator : $xml_setting['generator']); // Optional
+        }
+
+        if (isset($is_credit_invoice) && $is_credit_invoice) {
+            $filename = trans('credit_invoice');
+        } else {
+            $filename = trans('invoice');
+        }
+        $filename .= '_' . str_replace(['\\', '/'], '_', $invoice->invoice_number); 
+        $path     = generate_xml_invoice_file($invoice, $items, $generator, $filename, $options);
         $this->output->set_content_type('text/xml');
-        $this->output->set_output($this->zugferdxml->xml());
+        $this->output->set_output(file_get_contents($path));
+        unlink($path);
     }
 
-    public function generate_sumex_pdf($invoice_id)
+    public function generate_sumex_pdf($invoice_id): void
     {
         $this->load->helper('pdf');
 
         generate_invoice_sumex($invoice_id);
     }
 
-    public function generate_sumex_copy($invoice_id)
+    public function generate_sumex_copy($invoice_id): void
     {
-
-
         $this->load->model('invoices/mdl_items');
         $this->load->library('Sumex', [
             'invoice' => $this->mdl_invoices->get_by_id($invoice_id),
-            'items' => $this->mdl_items->where('invoice_id', $invoice_id)->get()->result(),
+            'items'   => $this->mdl_items->where('invoice_id', $invoice_id)->get()->result(),
             'options' => [
-                'copy' => "1",
-                'storno' => "0",
+                'copy'   => '1',
+                'storno' => '0',
             ],
         ]);
 
@@ -518,25 +498,28 @@ class Invoices extends Admin_Controller
      */
     public function delete_invoice_tax($invoice_id, $invoice_tax_rate_id)
     {
-        $this->load->model('mdl_invoice_tax_rates');
+        $this->load->model('invoices/mdl_invoice_tax_rates');
         $this->mdl_invoice_tax_rates->delete($invoice_tax_rate_id);
 
-        $this->load->model('mdl_invoice_amounts');
-        $this->mdl_invoice_amounts->calculate($invoice_id);
+        $this->load->model('invoices/mdl_invoice_amounts');
+        $global_discount['item'] = $this->mdl_invoice_amounts->get_global_discount($invoice_id);
+        // Recalculate invoice amounts
+        $this->mdl_invoice_amounts->calculate($invoice_id, $global_discount);
 
         redirect('invoices/view/' . $invoice_id);
     }
 
-    public function recalculate_all_invoices()
+    public function recalculate_all_invoices(): void
     {
         $this->db->select('invoice_id');
         $invoice_ids = $this->db->get('ip_invoices')->result();
 
-        $this->load->model('mdl_invoice_amounts');
+        $this->load->model('invoices/mdl_invoice_amounts');
 
         foreach ($invoice_ids as $invoice_id) {
-            $this->mdl_invoice_amounts->calculate($invoice_id->invoice_id);
+            $global_discount['item'] = $this->mdl_invoice_amounts->get_global_discount($invoice_id->invoice_id);
+            // Recalculate invoice amounts
+            $this->mdl_invoice_amounts->calculate($invoice_id->invoice_id, $global_discount);
         }
     }
-
 }

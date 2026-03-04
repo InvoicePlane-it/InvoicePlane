@@ -35,8 +35,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 class HTML5_Tokenizer {
     /**
-     * @var HTML5_InputStream
-     *
      * Points to an InputStream object.
      */
     protected $stream;
@@ -131,7 +129,6 @@ class HTML5_Tokenizer {
         $escape = false;
         //echo "\n\n";
         while($state !== null) {
-
             /*echo $state . ' ';
             switch ($this->content_model) {
                 case self::PCDATA: echo 'PCDATA'; break;
@@ -141,7 +138,6 @@ class HTML5_Tokenizer {
             }
             if ($escape) echo " escape";
             echo "\n";*/
-
             switch($state) {
                 case 'data':
 
@@ -2309,7 +2305,6 @@ class HTML5_Tokenizer {
             // matches the start of one of the identifiers in the first column.
 
             $refs = HTML5_Data::getNamedCharacterReferences();
-
             // Get the longest string which is the start of an identifier
             // ($chars) as well as the longest identifier which matches ($id)
             // and its codepoint ($codepoint).
@@ -2323,7 +2318,6 @@ class HTML5_Tokenizer {
                 }
                 $chars .= $char = $this->stream->char();
             }
-
             // Unconsume the one character we just took which caused the while
             // statement to fail. This could be anything and could cause state
             // changes (as if it matches the while loop it must be

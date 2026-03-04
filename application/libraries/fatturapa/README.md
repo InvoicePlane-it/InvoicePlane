@@ -169,3 +169,4 @@ $file = fopen('Risultato/'.$filename, 'w');
 fwrite($file, $xml);
 fclose($file);
 ```
+>>>>>>> 955424fcce2fd999f1b899078b3258c002cf5b62

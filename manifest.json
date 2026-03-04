@@ -1,0 +1,26 @@
+{
+  "name": "InvoicePlane",
+  "short_name": "InvoicePlane",
+  "description": "Sistema di fatturazione e gestione clienti",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3c8dbc",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/assets/core/img/favicon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable" 
+    },
+    {
+      "src": "/assets/core/img/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "finance", "productivity"],
+  "screenshots": []
+}
