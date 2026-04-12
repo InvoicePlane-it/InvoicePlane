@@ -1,0 +1,43 @@
+{
+	"files.associations": {
+		"*.php.example": "php"
+	},
+	"search.exclude": {
+		"application/logs": true
+	},
+	"intelephense.files.exclude": [
+		"**/.git/**",
+		"**/.svn/**",
+		"**/.hg/**",
+		"**/CVS/**",
+		"**/.DS_Store/**",
+		"**/node_modules/**",
+		"**/bower_components/**",
+		"**/vendor/**/{Tests,tests}/**",
+		"**/.history/**",
+		"**/vendor/**/vendor/**",
+		"application/logs/**"
+	],
+	// https://code.visualstudio.com/docs/containers/docker-compose#_command-customization
+	"containers.commands.composeUp": [
+		{
+			"label": "Compose Up (override)",
+			"template": "${composeCommand} -f docker-compose-it.yml ${configurationFile} up ${detached} ${build}",
+			"match": "-it.override|-it.dev|-it.prod"
+		}
+	],
+	"containers.commands.composeUpSubset": [
+		{
+			"label": "Compose Up (override)",
+			"template": "${composeCommand} -f docker-compose-it.yml ${configurationFile} up ${detached} ${build} ${serviceList}",
+			"match": "-it.override|-it.dev|-it.prod"
+		}
+	],
+	"containers.commands.composeDown": [
+		{
+			"label": "Compose Down (override)",
+			"template": "${composeCommand} -f docker-compose-it.yml ${configurationFile} down",
+			"match": "-it.override|-it.dev|-it.prod"
+		}
+	]
+}

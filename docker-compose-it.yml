@@ -1,0 +1,69 @@
+services:
+  web:
+    #image: nginx:1.25.0
+    build:
+      context: ./
+      dockerfile: .docker-it/Dockerfile
+      target: nginx-stage
+    environment:
+      - APP_DOMAIN
+      - COMPOSE_PROJECT_NAME
+      - NGINX_TIMEOUT=${NGINX_TIMEOUT-180}
+    depends_on:
+      - php
+    networks:
+      - default
+      - proxy
+    #volumes:
+    #  - uploads:/var/www/html/uploads
+    #  - cache:/var/www/html/cache
+    labels: # cross project Traefik (s2s/docker-tools/traefik)
+      - traefik.enable=true
+      - traefik.http.routers.${COMPOSE_PROJECT_NAME}-web.rule=Host(`${APP_DOMAIN}`)
+      - traefik.http.routers.${COMPOSE_PROJECT_NAME}-web-https.rule=Host(`${APP_DOMAIN}`)
+      - traefik.http.routers.${COMPOSE_PROJECT_NAME}-web-https.tls=true
+  php:
+    #image: php:7.3-fpm
+    build:
+      context: ./
+      dockerfile: .docker-it/Dockerfile
+      target: php-stage
+    environment:
+      - CI_ENV=${APP_ENV}
+      - PHP_TIMEOUT=${PHP_TIMEOUT-300}
+    #volumes:
+    #  - uploads:/var/www/html/uploads
+    #  - cache:/var/www/html/cache
+    depends_on:
+      - db
+  db:
+    image: mysql:5.7
+    volumes:
+      - database:/var/lib/mysql
+    # https://stackoverflow.com/questions/40425568/incorrect-datetime-value-0000-00-00-000000-date-sub-in-having
+    # https://github.com/docker-library/mysql/issues/541
+    command: --sql-mode= --character-set-server=utf8 --collation-server=utf8_general_ci
+    environment:
+      - MYSQL_DATABASE=${DB_DATABASE}
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+  #redis:
+  #  image: redis:5-alpine
+  #  volumes:
+  #    - redis_data:/data
+  #localstack:
+  #    extends:
+  #      file: docker-compose-localstack.yml
+  #      service: localstack
+
+volumes:
+  database:
+  #uploads:
+  #cache:
+  #redis_data:
+  #localstack_data:
+
+networks:
+  default:
+  proxy:
+    name: ${PROXY_NETWORK}
+    external: true

@@ -1,0 +1,30 @@
+# https://www.nginx.com/resources/wiki/start/topics/recipes/codeigniter/
+# https://www.nginx.com/resources/wiki/start/topics/examples/phpfcgi/
+server {
+    server_name ${APP_DOMAIN};
+
+    root /var/www/html;
+    index index.html index.php;
+    client_max_body_size 16M;
+
+    # set expiration of assets to MAX for caching
+    location ~* \.(ico|css|js|gif|jpe?g|png)(\?[0-9]+)?$ {
+        expires max;
+        log_not_found off;
+        # route to index.php if the asset is not found
+        try_files $uri $uri/ /index.php;
+    }
+
+    location / {
+        # Check if a file or directory index file exists, else route it to index.php.
+        try_files $uri $uri/ /index.php;
+    }
+
+    location ~* \.php$ {
+        fastcgi_pass php.${COMPOSE_PROJECT_NAME}_default:9000; # use the php container to interpret PHP files
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param PATH_INFO $fastcgi_path_info;
+        fastcgi_read_timeout ${NGINX_TIMEOUT};
+    }
+}

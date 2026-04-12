@@ -18,3 +18,8 @@ adminer.php
 /nbproject
 /.php_cs.cache
 /doc
+
+# ---it---inizio
+/.env
+/.vscode/launch.json
+# ---it---fine

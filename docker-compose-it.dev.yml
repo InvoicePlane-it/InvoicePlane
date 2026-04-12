@@ -1,0 +1,78 @@
+services:
+  web:
+    build:
+      dockerfile: .docker-it/Dockerfile
+      args:
+        BUILD_ENV: development # for php-stage used by nginx-stage
+    volumes:
+      - ./assets:/var/www/html/assets
+    networks:
+      default:
+        aliases: # https://community.traefik.io/t/12673 (not needed when really online)
+          - ${APP_DOMAIN}
+          - ${APP_DOMAIN_LAN}
+    ports:
+      - ${APP_HOST_PORT-}:80
+    labels: # support for traefik.me or ngrok
+      - traefik.http.routers.${COMPOSE_PROJECT_NAME}-web-dev.rule=Host(`${APP_DOMAIN_LAN}`) || Host(`${APP_DOMAIN_WAN}`)
+      - traefik.http.routers.${COMPOSE_PROJECT_NAME}-web-dev-https.rule=Host(`${APP_DOMAIN_LAN}`) || Host(`${APP_DOMAIN_WAN}`)
+      - traefik.http.routers.${COMPOSE_PROJECT_NAME}-web-dev-https.tls=true
+  php:
+    build:
+      dockerfile: .docker-it/Dockerfile
+      args:
+        BUILD_ENV: development
+    volumes:
+      - ./.docker-it/php/conf.d/xdebug.ini:/usr/local/etc/php/conf.d/xdebug.ini
+      - ./application:/var/www/html/application
+      #- ./system:/var/www/html/system
+      - ./assets:/var/www/html/assets
+      #- ./sql:/var/www/html/sql
+      - ./index.php:/var/www/html/index.php
+      - ./composer.json:/var/www/html/composer.json
+      - ./composer.lock:/var/www/html/composer.lock
+      - ./ipconfig.php:/var/www/html/ipconfig.php
+    environment:
+      - XDEBUG_REMOTE_HOST
+      - XDEBUG_REMOTE_PORT
+    depends_on:
+      - node
+    command: sh -c "composer install --no-interaction
+      && chown -R www-data:www-data application/logs
+      && php-fpm"
+  node:
+    #image: node:14-alpine
+    build:
+      context: ./
+      dockerfile: .docker-it/Dockerfile
+      target: node-stage
+    volumes:
+      - ./:/app
+    #working_dir: /app
+    #command: sh -c "npm ci && npm run dev" # ("tail -f /dev/null" to keep running without watching)
+    command: sh -c "npm install && npm run build"
+  db:
+    volumes:
+      - ./.docker-it/mysql/initdb:/docker-entrypoint-initdb.d
+    ports:
+      - ${DB_HOST_PORT-}:3306
+  phpmyadmin:
+    image: phpmyadmin:5
+    environment:
+      - PMA_HOST=db.${COMPOSE_PROJECT_NAME}_default
+    networks:
+      - default
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.${COMPOSE_PROJECT_NAME}-pma.rule=Host(`pma.${APP_DOMAIN}`)
+  #redis-admin:
+  #  image: s2software/redis-admin
+  #  environment:
+  #    - REDIS_HOST=redis.${COMPOSE_PROJECT_NAME}_default
+  #  networks:
+  #    - default
+  #    - proxy
+  #  labels:
+  #    - traefik.enable=true
+  #    - traefik.http.routers.${COMPOSE_PROJECT_NAME}-ra.rule=Host(`ra.${APP_DOMAIN}`)
