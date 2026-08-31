@@ -148,8 +148,12 @@ function get_req_fields_einvoice($client = null, $user_id = ''): object
     $c->vat_id    = $cid && $client->client_vat_id    == '' ? 1 : 0;
     // Tweak to run with or without VAT
     if ($c->company + $c->vat_id == 2) {
+        // Persona fisica senza azienda e senza P.IVA: OK
         $c->company = 0;
         $c->vat_id  = 0;
+    } elseif ($c->vat_id == 1 && !empty($client->client_tax_code)) {
+        // Enti/associazioni con Codice Fiscale ma senza P.IVA: OK
+        $c->vat_id = 0;
     }
 
     $total_empty_fields_client = 0;
