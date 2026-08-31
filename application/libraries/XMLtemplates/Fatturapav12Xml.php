@@ -238,22 +238,27 @@ class Fatturapav12Xml
             }
 
         } else {
-            // Persona giuridica: P.IVA obbligatoria
-            if (empty($piva_cliente)) {
-                throw new Exception('P.IVA obbligatoria per persone giuridiche (cliente: ' . ($this->invoice->client_company ?? '') . ')');
-            }
-
+            // Persona giuridica: serve P.IVA oppure CF (enti/associazioni possono avere solo CF)
             $denominazione = trim($this->invoice->client_company ?? '');
             if (empty($denominazione)) {
                 throw new Exception('Per persone giuridiche è obbligatorio il campo "Azienda/Ente".');
             }
 
             $destinatario['ragsoc'] = $denominazione;
-            $destinatario['piva']   = $piva_cliente;
 
-            // CF aggiuntivo solo se presente e diverso dalla P.IVA
-            if (!empty($cf_cliente) && $cf_cliente !== $piva_cliente) {
-                $destinatario['codfisc'] = $cf_cliente;
+            if (!empty($piva_cliente)) {
+                // Ha P.IVA: la usa come identificativo principale
+                $destinatario['piva'] = $piva_cliente;
+
+                // CF aggiuntivo solo se presente e diverso dalla P.IVA
+                if (!empty($cf_cliente) && $cf_cliente !== $piva_cliente) {
+                    $destinatario['codfisc'] = $cf_cliente;
+                }
+            } elseif (!empty($cf_cliente)) {
+                // Enti/associazioni senza P.IVA: usa solo il Codice Fiscale
+                $destinatario['codfisc'] = strtoupper($cf_cliente);
+            } else {
+                throw new Exception('P.IVA o Codice Fiscale obbligatori per persone giuridiche (cliente: ' . $denominazione . ')');
             }
         }
 
