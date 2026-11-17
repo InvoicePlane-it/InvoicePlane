@@ -20,6 +20,10 @@ FROM php:7.3-fpm AS php-stage
 ARG BUILD_ENV=production
 ENV BUILD_ENV=$BUILD_ENV
 
+# php:7.3 is based on Debian 11 bullseye (EOL): its packages are only on archive.debian.org
+RUN printf "deb http://archive.debian.org/debian bullseye main\ndeb http://archive.debian.org/debian-security bullseye-security main\n" > /etc/apt/sources.list && \
+  rm -f /etc/apt/sources.list.d/*
+
 # Install git for composer, locales for intl extension
 RUN apt-get update && \
   apt-get install -y git locales-all
