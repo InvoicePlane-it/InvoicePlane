@@ -1,0 +1,127 @@
+name: Release (it)
+
+# Builds the release zip and opens a DRAFT GitHub release, to review and
+# publish by hand. Triggered by pushing a version tag, e.g.:
+#   git tag v1.5.10_it3 && git push origin v1.5.10_it3
+# The tag (without "v") must match versione.txt.
+#
+# The zip contains the repository files at the tag plus what git does not
+# track: vendor/ (composer install --no-dev) and the compiled assets.
+# PHP and Node versions match .docker-it/Dockerfile.
+
+on:
+  push:
+    tags:
+      - 'v*_it*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to (re)build, e.g. v1.5.10_it3'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Check tag against versione.txt
+        run: |
+          VERSION="$(tr -d '[:space:]' < versione.txt)"
+          if [ "v${VERSION}" != "${TAG}" ]; then
+            echo "::error::Tag ${TAG} does not match versione.txt (${VERSION})"
+            exit 1
+          fi
+
+      - name: Export repository files
+        run: |
+          mkdir -p "${RUNNER_TEMP}/build"
+          git archive --format=tar --prefix="${TAG}/" "${TAG}" | tar -x -C "${RUNNER_TEMP}/build"
+          echo "PKG_DIR=${RUNNER_TEMP}/build/${TAG}" >> "$GITHUB_ENV"
+
+      # Only english and italian are tracked in git (application/language/.gitignore):
+      # the other translations come from the official InvoicePlane release of the
+      # same base version (v1.5.10_it3 -> v1.5.10). Ours win for english/italian.
+      - name: Add upstream translations
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          UPSTREAM_TAG="${TAG%%_it*}"
+          UP_DIR="${RUNNER_TEMP}/upstream"
+          gh release download "${UPSTREAM_TAG}" --repo InvoicePlane/InvoicePlane --pattern "${UPSTREAM_TAG}.zip" --dir "${UP_DIR}"
+          unzip -q "${UP_DIR}/${UPSTREAM_TAG}.zip" 'application/language/*' -d "${UP_DIR}"
+          for dir in "${UP_DIR}"/application/language/*/; do
+            name="$(basename "${dir}")"
+            case "${name,,}" in english|italian) continue ;; esac
+            cp -r "${dir}" "${PKG_DIR}/application/language/"
+          done
+          ls "${PKG_DIR}/application/language"
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '7.3'
+          extensions: gd, intl, mysqli, zip, dom, json, simplexml, mbstring
+          tools: composer:v2
+
+      - name: Install PHP dependencies
+        working-directory: ${{ env.PKG_DIR }}
+        env:
+          # mpdf comes from a GitHub vcs repository
+          COMPOSER_AUTH: '{"github-oauth": {"github.com": "${{ secrets.GITHUB_TOKEN }}"}}'
+        run: composer install --no-dev --optimize-autoloader --no-interaction --no-progress --prefer-dist
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '14'
+
+      - name: Build assets
+        working-directory: ${{ env.PKG_DIR }}
+        run: |
+          npm ci
+          npm run build
+          rm -rf node_modules
+
+      - name: Create zip
+        run: |
+          cd "${RUNNER_TEMP}/build"
+          zip -q -r -9 "${TAG}.zip" "${TAG}"
+          sha256sum "${TAG}.zip" > "${TAG}.zip.sha256"
+          ls -lh "${TAG}.zip"
+          cat "${TAG}.zip.sha256"
+
+      - name: Generate release notes
+        run: |
+          PREV_TAG="$(git describe --tags --abbrev=0 --match 'v*_it*' "${TAG}^" 2>/dev/null || true)"
+          {
+            echo "<!-- Bozza generata dai commit: riscrivere come elenco delle novità -->"
+            if [ -n "${PREV_TAG}" ]; then
+              echo "Modifiche da ${PREV_TAG}:"
+              echo
+              git log "${PREV_TAG}..${TAG}" --no-merges --pretty=format:'- %s'
+            fi
+          } > "${RUNNER_TEMP}/notes.md"
+          cat "${RUNNER_TEMP}/notes.md"
+
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          cd "${RUNNER_TEMP}/build"
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            # rebuild: replace the assets, keep title and notes
+            gh release upload "${TAG}" "${TAG}.zip" "${TAG}.zip.sha256" --clobber
+          else
+            gh release create "${TAG}" "${TAG}.zip" "${TAG}.zip.sha256" \
+              --draft --verify-tag --title "${TAG}" --notes-file "${RUNNER_TEMP}/notes.md"
+          fi
