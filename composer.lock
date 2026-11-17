@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "cb44664dbd4234964c9f98794a2e95f5",
+    "content-hash": "4024ef8dbaa1af60c6e41493bb8bb87f",
     "packages": [
         {
             "name": "codeigniter/framework",
@@ -2124,6 +2124,58 @@
             "time": "2019-11-01T11:05:21+00:00"
         },
         {
+            "name": "s2software/fatturapa",
+            "version": "v0.4.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/s2software/fatturapa.git",
+                "reference": "86d67138c9ac94029eaa6f816c759e559e4804c5"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/s2software/fatturapa/zipball/86d67138c9ac94029eaa6f816c759e559e4804c5",
+                "reference": "86d67138c9ac94029eaa6f816c759e559e4804c5",
+                "shasum": ""
+            },
+            "require": {
+                "ext-dom": "*",
+                "ext-json": "*",
+                "ext-simplexml": "*",
+                "php": ">=5.4"
+            },
+            "type": "library",
+            "autoload": {
+                "classmap": [
+                    "fatturapa.php"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Stefano Storti",
+                    "email": "s.storti@s2software.it",
+                    "homepage": "https://www.s2software.it/"
+                }
+            ],
+            "description": "Libreria PHP per la generazione della fattura elettronica italiana in XML (formato FatturaPA)",
+            "homepage": "https://github.com/s2software/fatturapa",
+            "keywords": [
+                "fattura elettronica",
+                "fatturaPa",
+                "fatturazione elettronica",
+                "sdi",
+                "xml"
+            ],
+            "support": {
+                "source": "https://github.com/s2software/fatturapa/tree/v0.4.0"
+            },
+            "time": "2026-11-17T08:50:39+00:00",
+            "published-time": "2026-11-17T08:54:36+00:00"
+        },
+        {
             "name": "setasign/fpdf",
             "version": "1.8.2",
             "source": {
@@ -2668,6 +2720,7 @@
     },
     "prefer-stable": false,
     "prefer-lowest": false,
-    "platform": [],
-    "platform-dev": []
+    "platform": {},
+    "platform-dev": {},
+    "plugin-api-version": "2.11.0"
 }

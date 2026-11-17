@@ -325,8 +325,7 @@ class Invoices extends Admin_Controller
     	}
     	
     	// Genera XML fattura elettronica
-    	// https://github.com/s2software/fatturapa
-    	require_once(APPPATH.'libraries/fatturapa/fatturapa.php');
+    	// https://github.com/s2software/fatturapa (via Composer)
     	$formato = $customs['cliente_formato_xml'] ? $customs['cliente_formato_xml'] : 'FPR12';
     	$fatturapa = new FatturaPA($formato);	// privato vs pa
     	

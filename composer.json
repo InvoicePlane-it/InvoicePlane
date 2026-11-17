@@ -18,6 +18,7 @@
     "setasign/fpdi-fpdf": "^2.2.0",
     "codeigniter/framework": "3.1.11",
     "league/omnipay": "~2.0",
-    "paragonie/random_compat": "^2.0"
+    "paragonie/random_compat": "^2.0",
+    "s2software/fatturapa": "^0.4"
   }
 }
